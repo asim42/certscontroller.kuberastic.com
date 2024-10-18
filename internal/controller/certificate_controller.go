@@ -18,6 +18,15 @@ package controller
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -26,10 +35,65 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	certscontrollerkuberasticcomv1 "certscontroller.kuberastic.com/api/v1"
-	certs "certscontroller.kuberastic.com/pkg/certs"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+
+func GenerateCertTemplate(domain string, organization string, validityInMonths int) x509.Certificate {
+	return x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Organization: []string{organization},
+			CommonName:   domain,
+		},
+		DNSNames:              []string{domain},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(0, validityInMonths, 0),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+}
+
+func GenerateKey() (*ecdsa.PrivateKey, error) {
+	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+}
+
+func GenerateSelfSignedCert(domain string, organization string, validityInMonths int) (string, string, error) {
+
+	var certsSB strings.Builder
+	var privkeySB strings.Builder
+
+	certTemplate := GenerateCertTemplate(domain, organization, validityInMonths)
+	privateKey, err := GenerateKey()
+	if err != nil {
+		return certsSB.String(), privkeySB.String(), nil
+	}
+
+	// Create the self-signed certificate
+	certDER, err := x509.CreateCertificate(rand.Reader, &certTemplate, &certTemplate, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		return certsSB.String(), privkeySB.String(), nil
+	}
+
+	// Encode and write the certificate in PEM format
+	if err := pem.Encode(&certsSB, &pem.Block{Type: "CERTIFICATE", Bytes: certDER}); err != nil {
+		return certsSB.String(), privkeySB.String(), nil
+	}
+
+	// Marshal private key and write it in PEM format
+	keyBytes, err := x509.MarshalECPrivateKey(privateKey)
+	if err != nil {
+		return certsSB.String(), privkeySB.String(), nil
+	}
+	if err := pem.Encode(&privkeySB, &pem.Block{Type: "EC PRIVATE KEY", Bytes: keyBytes}); err != nil {
+		return certsSB.String(), privkeySB.String(), nil
+	}
+
+	log.Log.Info("Self-signed certificate generated: %s.crt and %s.key", domain, domain)
+	return certsSB.String(), privkeySB.String(), nil
+}
 
 // CertificateReconciler reconciles a Certificate object
 type CertificateReconciler struct {
@@ -59,7 +123,7 @@ func (r *CertificateReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	certNotFoundError := r.Get(ctx, req.NamespacedName, &certificate)
 	secretNotFoundError := r.Get(ctx, types.NamespacedName{Name: certificate.Spec.SecretRef.Name, Namespace: certificate.Namespace}, &foundSecret)
 
-	cert, privKey, err := certs.GenerateSelfSignedCert(certificate.Spec.Domain, certificate.Spec.Org, certificate.Spec.ValidityInMonths)
+	cert, privKey, err := GenerateSelfSignedCert(certificate.Spec.Domain, certificate.Spec.Org, certificate.Spec.ValidityInMonths)
 	if err != nil {
 		log.Log.Error(err, "Failed to generate self-signed certificate")
 		return ctrl.Result{}, nil
