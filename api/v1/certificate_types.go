@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -25,10 +26,10 @@ import (
 
 // CertificateSpec defines the desired state of Certificate
 type CertificateSpec struct {
-	Domain           string `json:"domain,omitempty"`
-	Org              string `json:"org,omitempty"`
-	ValidityInMonths int    `json:"validityInMonths,omitempty"`
-	SecretRef        string `json:"secretRef,omitempty"`
+	Domain           string                 `json:"domain,omitempty"`
+	Org              string                 `json:"org,omitempty"`
+	ValidityInMonths int                    `json:"validityInMonths,omitempty"`
+	SecretRef        corev1.SecretReference `json:"secretRef,omitempty"`
 }
 
 // CertificateStatus defines the observed state of Certificate
