@@ -65,7 +65,7 @@ func (r *CertificateReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	// Create the secret object
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      certificate.Spec.Domain + "-tls-secret",
+			Name:      certificate.Spec.SecretRef,
 			Namespace: certificate.Namespace,
 		},
 		Type: corev1.SecretTypeTLS,

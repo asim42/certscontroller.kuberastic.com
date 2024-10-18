@@ -28,6 +28,7 @@ type CertificateSpec struct {
 	Domain           string `json:"domain,omitempty"`
 	Org              string `json:"org,omitempty"`
 	ValidityInMonths int    `json:"validityInMonths,omitempty"`
+	SecretRef        string `json:"secretRef,omitempty"`
 }
 
 // CertificateStatus defines the observed state of Certificate
