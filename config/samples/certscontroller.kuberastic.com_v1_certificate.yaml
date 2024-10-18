@@ -1,0 +1,9 @@
+apiVersion: certscontroller.kuberastic.com.certscontroller.kuberastic.com/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/name: certscontroller
+    app.kubernetes.io/managed-by: kustomize
+  name: certificate-sample
+spec:
+  # TODO(user): Add fields here
