@@ -25,11 +25,9 @@ import (
 
 // CertificateSpec defines the desired state of Certificate
 type CertificateSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of Certificate. Edit certificate_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Domain           string `json:"domain,omitempty"`
+	Org              string `json:"org,omitempty"`
+	ValidityInMonths string `json:"validityInMonths,omitempty"`
 }
 
 // CertificateStatus defines the observed state of Certificate
