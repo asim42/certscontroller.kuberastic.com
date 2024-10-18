@@ -27,7 +27,7 @@ import (
 type CertificateSpec struct {
 	Domain           string `json:"domain,omitempty"`
 	Org              string `json:"org,omitempty"`
-	ValidityInMonths string `json:"validityInMonths,omitempty"`
+	ValidityInMonths int    `json:"validityInMonths,omitempty"`
 }
 
 // CertificateStatus defines the observed state of Certificate

@@ -25,6 +25,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	certscontrollerkuberasticcomv1 "certscontroller.kuberastic.com/api/v1"
+	certs "certscontroller.kuberastic.com/pkg/certs"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // CertificateReconciler reconciles a Certificate object
@@ -49,7 +52,32 @@ type CertificateReconciler struct {
 func (r *CertificateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	var certificate certscontrollerkuberasticcomv1.Certificate
+	if err := r.Get(ctx, req.NamespacedName, &certificate); err != nil {
+		log.Log.Error(err, "Unable to fetch cert")
+	}
+
+	cert, privKey, err := certs.GenerateSelfSignedCert(certificate.Spec.Domain, certificate.Spec.Org, certificate.Spec.ValidityInMonths)
+	if err != nil {
+		log.Log.Error(err, "Failed to generate self-signed certificate")
+	}
+
+	// Create the secret object
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      certificate.Spec.Domain + "-tls-secret",
+			Namespace: certificate.Namespace,
+		},
+		Type: corev1.SecretTypeTLS,
+		Data: map[string][]byte{
+			corev1.TLSCertKey:       []byte(cert),
+			corev1.TLSPrivateKeyKey: []byte(privKey),
+		},
+	}
+
+	if err := r.Create(ctx, secret); err != nil {
+		log.Log.Error(err, "unable to create Job")
+	}
 
 	return ctrl.Result{}, nil
 }
