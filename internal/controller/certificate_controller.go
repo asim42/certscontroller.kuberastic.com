@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -52,16 +53,17 @@ type CertificateReconciler struct {
 func (r *CertificateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	var certificate certscontrollerkuberasticcomv1.Certificate
-	if err := r.Get(ctx, req.NamespacedName, &certificate); err != nil {
-		log.Log.Error(err, "Unable to fetch cert")
-	}
+	certificate := certscontrollerkuberasticcomv1.Certificate{}
+	foundSecret := corev1.Secret{}
+
+	certNotFoundError := r.Get(ctx, req.NamespacedName, &certificate)
+	secretNotFoundError := r.Get(ctx, types.NamespacedName{Name: certificate.Spec.SecretRef.Name, Namespace: certificate.Namespace}, &foundSecret)
 
 	cert, privKey, err := certs.GenerateSelfSignedCert(certificate.Spec.Domain, certificate.Spec.Org, certificate.Spec.ValidityInMonths)
 	if err != nil {
 		log.Log.Error(err, "Failed to generate self-signed certificate")
+		return ctrl.Result{}, nil
 	}
-
 	// Create the secret object
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -75,8 +77,39 @@ func (r *CertificateReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		},
 	}
 
-	if err := r.Create(ctx, secret); err != nil {
-		log.Log.Error(err, "unable to create Job")
+	if certNotFoundError != nil {
+		// certificate not found
+		if secretNotFoundError != nil {
+			// secret not found
+			log.Log.Info("Certificate was deleted, skipping reconciliation")
+		} else {
+			// secret found for delete
+			if err := r.Delete(ctx, &foundSecret); err != nil {
+				log.Log.Error(err, "Certificate was delete but related secret could be deleted")
+			} else {
+				log.Log.Info("Certificate was deleted, secret has been deleted!")
+			}
+		}
+		return ctrl.Result{}, nil
+	} else {
+		// certificate found
+		if secretNotFoundError != nil {
+			// secret not found, create it
+			log.Log.Info("Creating new secret")
+			if err := r.Create(ctx, secret); err != nil {
+				log.Log.Error(err, "Unable to create secret")
+			} else {
+				log.Log.Info("Secret Created!")
+			}
+		} else {
+			// secret found, update it
+			log.Log.Info("Updating secret")
+			if err := r.Update(ctx, secret); err != nil {
+				log.Log.Error(err, "Unable to update secret")
+			} else {
+				log.Log.Info("Secret Updated!")
+			}
+		}
 	}
 
 	return ctrl.Result{}, nil
