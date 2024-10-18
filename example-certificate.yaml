@@ -1,0 +1,14 @@
+apiVersion: certscontroller.kuberastic.com.certscontroller.kuberastic.com/v1
+kind: Certificate
+metadata:
+  name: example-certificate
+  namespace: default
+spec:
+  # the DNS name for which the certificate should be issued
+  domain: example.kuberastic.com
+  # the time until the certificate expires
+  validityInMonths: 3
+  # a reference to the Secret object in which the certificate is stored
+  secretRef:
+    name: my-certificate-secret
+    namespace: default
