@@ -24,6 +24,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -38,7 +39,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
 
 func GenerateCertTemplate(domain string, organization string, validityInMonths int) x509.Certificate {
 	return x509.Certificate{
@@ -91,7 +91,7 @@ func GenerateSelfSignedCert(domain string, organization string, validityInMonths
 		return certsSB.String(), privkeySB.String(), nil
 	}
 
-	log.Log.Info("Self-signed certificate generated: %s.crt and %s.key", domain, domain)
+	log.Log.Info(fmt.Sprintf("Self-signed certificate generated: %s.crt and %s.key", domain, domain))
 	return certsSB.String(), privkeySB.String(), nil
 }
 
